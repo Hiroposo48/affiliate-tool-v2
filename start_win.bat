@@ -1,8 +1,10 @@
 @echo off
+chcp 65001 >nul
 cd /d "%~dp0"
 node -v >nul 2>&1
 if %errorlevel% neq 0 (
   echo Node.jsがインストールされていません
+  echo https://nodejs.org/ja/ からインストールしてください
   start https://nodejs.org/ja/
   pause
   exit
