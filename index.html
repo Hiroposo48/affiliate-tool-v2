@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>アフィリエイトカード生成ツール</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5; color: #1a1a1a; min-height: 100vh; padding: 32px 16px;
+    }
+    .container { max-width: 760px; margin: 0 auto; }
+    h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 8px; color: #111; }
+    .subtitle { font-size: 0.85rem; color: #666; margin-bottom: 24px; }
+    .card {
+      background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .card-title {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: #888; margin-bottom: 16px;
+    }
+    label { display: block; font-size: 0.8rem; font-weight: 600; color: #444; margin-bottom: 4px; margin-top: 12px; }
+    label:first-of-type { margin-top: 0; }
+    input[type="text"] {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #e0e0e0;
+      border-radius: 8px; font-size: 0.9rem; outline: none; transition: border-color .2s;
+    }
+    input[type="text"]:focus { border-color: #4f8ef7; }
+    button {
+      padding: 10px 20px; border: none; border-radius: 8px; font-size: 0.9rem;
+      font-weight: 600; cursor: pointer; transition: opacity .15s, transform .1s;
+    }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-search { background: #bf0000; color: #fff; white-space: nowrap; }
+    .btn-generate { width: 100%; margin-top: 20px; background: #111; color: #fff; padding: 13px; font-size: 1rem; }
+    .btn-copy { background: #e8f0fe; color: #1a73e8; font-size: 0.85rem; padding: 8px 16px; }
+    .btn-save { background: #4f8ef7; color: #fff; margin-top: 16px; }
+    .btn-bat { background: #e8f5e9; color: #2e7d32; font-size: 0.85rem; padding: 8px 16px; }
+    .row { display: flex; gap: 12px; align-items: center; }
+    .tab-bar { display: flex; gap: 8px; margin-bottom: 20px; }
+    .tab {
+      padding: 8px 18px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; border: 2px solid #e0e0e0; background: #fff; color: #888; transition: all .2s;
+    }
+    .tab.active { background: #111; color: #fff; border-color: #111; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .settings-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .msg { font-size: 0.8rem; margin-top: 8px; padding: 8px 12px; border-radius: 6px; }
+    .msg-ok { background: #e8f5e9; color: #2e7d32; }
+    .msg-err { background: #fce8e6; color: #c62828; }
+    .spinner { display: none; font-size: 0.8rem; color: #888; margin-top: 6px; }
+    .spinner.show { display: block; }
+    .divider { border: none; border-top: 1.5px dashed #e0e0e0; margin: 20px 0; }
+
+    /* 検索結果リスト */
+    .search-results { margin-top: 16px; display: none; }
+    .search-results.show { display: block; }
+    .result-list { display: flex; flex-direction: column; gap: 10px; }
+    .result-item {
+      display: flex; gap: 12px; align-items: center; padding: 10px 12px;
+      border: 1.5px solid #e0e0e0; border-radius: 8px; cursor: pointer;
+      transition: border-color .2s, background .2s;
+    }
+    .result-item:hover { border-color: #bf0000; background: #fff5f5; }
+    .result-item.selected { border-color: #bf0000; background: #fff5f5; }
+    .result-item img { width: 56px; height: 56px; object-fit: contain; border-radius: 4px; flex-shrink: 0; }
+    .result-item-info { flex: 1; min-width: 0; }
+    .result-item-name { font-size: 0.82rem; font-weight: 600; color: #111; line-height: 1.4;
+      overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .result-item-price { font-size: 0.8rem; color: #bf0000; font-weight: 700; margin-top: 2px; }
+    .result-item-shop { font-size: 0.72rem; color: #888; margin-top: 2px; }
+
+    /* Amazon入力エリア */
+    .amz-section { margin-top: 20px; }
+    .section-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      padding: 3px 10px; border-radius: 6px; display: inline-block; margin-bottom: 10px;
+    }
+    .section-label.amazon { background: #232f3e; color: #f90; }
+    .section-label.rakuten { background: #bf0000; color: #fff; }
+
+    /* プレビューカード（Rinker風） */
+    .preview-card {
+      border: 1px solid #ddd; border-radius: 4px; padding: 16px;
+      display: flex; gap: 16px; align-items: flex-start; background: #fff;
+      margin-top: 16px;
+    }
+    .preview-card img { width: 100px; height: 100px; object-fit: contain; flex-shrink: 0; }
+    .preview-card-body { flex: 1; min-width: 0; }
+    .preview-card-title { font-size: 0.92rem; font-weight: 600; line-height: 1.5; margin-bottom: 6px; }
+    .preview-card-meta { font-size: 0.72rem; color: #888; margin-bottom: 10px; }
+    .preview-card-price { color: #bf0000; font-weight: 700; }
+    .preview-card-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    .preview-btn-amz {
+      padding: 8px 18px; background: #232f3e; color: #fff; font-weight: 700;
+      font-size: 0.85rem; border-radius: 4px; text-decoration: none; display: inline-block;
+    }
+    .preview-btn-rak {
+      padding: 8px 18px; background: #bf0000; color: #fff; font-weight: 700;
+      font-size: 0.85rem; border-radius: 4px; text-decoration: none; display: inline-block;
+    }
+    .output-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; margin-top: 20px; }
+    textarea.output {
+      width: 100%; background: #f8f9fa; font-family: monospace; font-size: 0.78rem;
+      min-height: 100px; resize: vertical; padding: 10px 12px;
+      border: 1.5px solid #e0e0e0; border-radius: 8px; outline: none;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>📦 アフィリエイトカード生成ツール</h1>
+  <p class="subtitle">商品を検索してAmazon・楽天のアフィリエイトカードを作成します</p>
+
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('main', this)">カード生成</div>
+    <div class="tab" onclick="switchTab('settings', this)">⚙️ 設定</div>
+  </div>
+
+  <!-- メインタブ -->
+  <div id="tab-main" class="tab-content active">
+    <div class="card">
+
+      <!-- 楽天検索 -->
+      <div class="section-label rakuten">楽天 商品検索</div>
+      <label for="keyword">商品名で検索</label>
+      <div class="row">
+        <input type="text" id="keyword" placeholder="例：Anker 充電器" style="flex:1" onkeydown="if(event.key==='Enter')searchRakuten()">
+        <button class="btn-search" onclick="searchRakuten()">検索</button>
+      </div>
+      <div class="spinner" id="searchSpinner">⏳ 検索中...</div>
+
+      <!-- 検索結果 -->
+      <div class="search-results" id="searchResults">
+        <div class="card-title" style="margin-top:12px;">検索結果（クリックして選択）</div>
+        <div class="result-list" id="resultList"></div>
+      </div>
+
+      <div id="amzSearchBtn" style="display:none;margin-top:12px;">
+      <button onclick="openAmazonSearch()" style="background:#f90;color:#111;font-weight:700;padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:0.85rem;">
+        🔍 Amazonで同じ商品を探す（別タブで開く）
+      </button>
+    </div>
+    <hr class="divider">
+
+      <!-- Amazon -->
+      <div class="section-label amazon">Amazon URL</div>
+      <label for="amzUrl">Amazon 商品URL（任意）</label>
+      <div class="row">
+        <input type="text" id="amzUrl" placeholder="https://www.amazon.co.jp/dp/..." style="flex:1">
+        <button style="background:#f90;color:#111;font-weight:700;white-space:nowrap;" onclick="fetchAmazon()">情報取得</button>
+      </div>
+      <div class="spinner" id="amzSpinner">⏳ 取得中...</div>
+      <div id="amzResult" style="display:none;margin-top:8px;font-size:0.82rem;color:#2e7d32;"></div>
+      <label for="amzPrice" style="margin-top:12px;">Amazon 価格（例：9,990円）</label>
+      <input type="text" id="amzPrice" placeholder="例：9,990円">
+
+      <button class="btn-generate" onclick="generateCard()">▶ カードを生成</button>
+    </div>
+
+    <!-- 出力エリア -->
+    <div class="card" id="outputCard" style="display:none">
+      <div class="card-title">プレビュー</div>
+      <div id="previewArea"></div>
+      <div class="output-header">
+        <div class="card-title" style="margin:0;">生成されたHTML</div>
+        <button class="btn-copy" onclick="copyHtml()">コピー</button>
+      </div>
+      <textarea class="output" id="htmlOutput" readonly></textarea>
+    </div>
+  </div>
+
+  <!-- 設定タブ -->
+  <div id="tab-settings" class="tab-content">
+    <div class="card">
+      <div class="card-title">アフィリエイトID設定</div>
+      <div class="settings-row">
+        <div>
+          <label for="setAmazonTag">Amazon アソシエイトID</label>
+          <input type="text" id="setAmazonTag" placeholder="例：yourname-22">
+        </div>
+        <div>
+          <label for="setRakutenId">楽天アフィリエイトID</label>
+          <input type="text" id="setRakutenId" placeholder="例：xxxxxxxxxxxxxxxx">
+        </div>
+      </div>
+      <label for="setRakutenAppId">楽天アプリID</label>
+      <input type="text" id="setRakutenAppId" placeholder="例：1234567890123456789">
+      <button class="btn-save" onclick="saveSettings()">保存</button>
+      <div id="settingsMsg"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">起動ファイル生成</div>
+      <p style="font-size:0.85rem;color:#555;margin-bottom:16px;">配布先の環境に合わせた起動ファイルを生成します。</p>
+      <div class="row">
+        <button class="btn-bat" onclick="downloadBat()">Windows用 .bat を生成</button>
+        <button class="btn-bat" onclick="downloadSh()">Mac用 .sh を生成</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+  // 状態管理
+  let selectedItem = null;
+  let amzData = null;
+
+  function switchTab(name, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    el.classList.add('active');
+  }
+
+  function loadSettings() {
+    return {
+      amazonTag:    localStorage.getItem('amazonTag') || '',
+      rakutenId:    localStorage.getItem('rakutenId') || '',
+      rakutenAppId: localStorage.getItem('rakutenAppId') || '',
+    };
+  }
+
+  function saveSettings() {
+    localStorage.setItem('amazonTag',    document.getElementById('setAmazonTag').value.trim());
+    localStorage.setItem('rakutenId',    document.getElementById('setRakutenId').value.trim());
+    localStorage.setItem('rakutenAppId', document.getElementById('setRakutenAppId').value.trim());
+    const msg = document.getElementById('settingsMsg');
+    msg.className = 'msg msg-ok';
+    msg.textContent = '✓ 保存しました';
+    setTimeout(() => msg.textContent = '', 3000);
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const s = loadSettings();
+    document.getElementById('setAmazonTag').value    = s.amazonTag;
+    document.getElementById('setRakutenId').value    = s.rakutenId;
+    document.getElementById('setRakutenAppId').value = s.rakutenAppId;
+  });
+
+  // --- 楽天商品検索 ---
+  async function searchRakuten() {
+    const keyword = document.getElementById('keyword').value.trim();
+    const { rakutenAppId } = loadSettings();
+    if (!keyword) { alert('商品名を入力してください'); return; }
+    if (!rakutenAppId) { alert('設定タブで楽天アプリIDを入力してください'); return; }
+
+    const spinner = document.getElementById('searchSpinner');
+    const results = document.getElementById('searchResults');
+    spinner.classList.add('show');
+    results.classList.remove('show');
+    selectedItem = null;
+
+    try {
+      const res = await fetch('/search-rakuten', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword, appId: rakutenAppId }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      if (!data.items || data.items.length === 0) throw new Error('商品が見つかりませんでした');
+      renderResults(data.items);
+    } catch (e) {
+      alert('検索エラー: ' + e.message);
+    } finally {
+      spinner.classList.remove('show');
+    }
+  }
+
+  function renderResults(items) {
+    const list = document.getElementById('resultList');
+    list.innerHTML = '';
+    items.forEach((item, i) => {
+      const el = document.createElement('div');
+      el.className = 'result-item';
+      el.innerHTML = `
+        <img src="${item.image}" alt="${item.title}" onerror="this.style.display='none'">
+        <div class="result-item-info">
+          <div class="result-item-name">${item.title}</div>
+          <div class="result-item-price">¥${Number(item.price).toLocaleString()}</div>
+          <div class="result-item-shop">${item.shop}</div>
+        </div>
+      `;
+      el.onclick = () => {
+      selectItem(el, item);
+      document.getElementById('amzSearchBtn').style.display = 'block';
+    };
+      list.appendChild(el);
+    });
+    document.getElementById('searchResults').classList.add('show');
+  }
+
+  function selectItem(el, item) {
+    document.querySelectorAll('.result-item').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedItem = item;
+  }
+
+  // --- Amazon OGP取得 ---
+  async function fetchAmazon() {
+    const url = document.getElementById('amzUrl').value.trim();
+    if (!url) { alert('Amazon商品URLを入力してください'); return; }
+    const spinner = document.getElementById('amzSpinner');
+    const result  = document.getElementById('amzResult');
+    spinner.classList.add('show');
+    result.style.display = 'none';
+    amzData = null;
+    try {
+      const res = await fetch('/fetch-ogp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      amzData = { ...data, url };
+      result.style.display = 'block';
+      result.textContent = '✓ 取得完了：' + (data.title || '').slice(0, 40) + '...';
+    } catch (e) {
+      alert('取得エラー: ' + e.message);
+    } finally {
+      spinner.classList.remove('show');
+    }
+  }
+
+  // --- カード生成 ---
+  function generateCard() {
+    const { amazonTag, rakutenId } = loadSettings();
+    if (!selectedItem) { alert('楽天の商品を検索して選択してください'); return; }
+    if (!rakutenId)    { alert('設定タブで楽天アフィリエイトIDを入力してください'); return; }
+
+    const now = new Date();
+    const dateStr = now.getFullYear() + '/' +
+      String(now.getMonth()+1).padStart(2,'0') + '/' +
+      String(now.getDate()).padStart(2,'0') + ' ' +
+      String(now.getHours()).padStart(2,'0') + ':' +
+      String(now.getMinutes()).padStart(2,'0') + ':' +
+      String(now.getSeconds()).padStart(2,'0');
+
+    const price = '¥' + Number(selectedItem.price).toLocaleString();
+    const amzPriceVal = document.getElementById('amzPrice').value.trim();
+    const amzPriceStr = amzPriceVal ? (amzPriceVal.startsWith('¥') ? amzPriceVal : '¥' + amzPriceVal) : '';
+    const rakAffUrl = 'https://hb.afl.rakuten.co.jp/hgc/' + rakutenId + '/?pc=' + encodeURIComponent(selectedItem.url);
+
+    // Amazonリンク
+    let amzAffUrl = '';
+    if (amzData && amazonTag) {
+      const asin = (amzData.url.match(/\/dp\/([A-Z0-9]{10})/) || [])[1] || '';
+      amzAffUrl = asin
+        ? 'https://www.amazon.co.jp/dp/' + asin + '?tag=' + amazonTag
+        : amzData.url + (amzData.url.includes('?') ? '&' : '?') + 'tag=' + amazonTag;
+    }
+
+    const image = selectedItem.image;
+    const title = selectedItem.title.replace(/&amp;/g, '&');
+
+    // Amazonボタン
+    const amzBtn = amzAffUrl
+      ? `<a href="${amzAffUrl}" target="_blank" rel="noopener" class="preview-btn-amz">AMAZON</a>`
+      : '';
+
+    // プレビュー表示
+    const previewHtml = `<div class="preview-card">
+  <img src="${image}" alt="${title}">
+  <div class="preview-card-body">
+    <div class="preview-card-title">${title}</div>
+    <div class="preview-card-meta">
+      <span class="preview-card-price">${price}</span>（${dateStr}時点 楽天市場調べ）
+      ${amzPriceStr ? '<br><span style="color:#232f3e;font-weight:700;">' + amzPriceStr + '</span>（' + dateStr + '時点 Amazon調べ）' : ''}
+    </div>
+    <div class="preview-card-btns">
+      <a href="${rakAffUrl}" target="_blank" rel="noopener" class="preview-btn-rak">楽天市場</a>
+      ${amzBtn}
+    </div>
+  </div>
+</div>`;
+
+    // 出力HTML（インラインスタイル版）
+    const outputHtml = `<div style="border:1px solid #ddd;border-radius:4px;padding:16px;display:flex;gap:16px;align-items:flex-start;background:#fff;max-width:600px;font-family:sans-serif;">
+  <img src="${image}" alt="${title}" style="width:100px;height:100px;object-fit:contain;flex-shrink:0;">
+  <div style="flex:1;min-width:0;">
+    <div style="font-size:0.92rem;font-weight:600;line-height:1.5;margin-bottom:6px;">${title}</div>
+    <div style="font-size:0.72rem;color:#888;margin-bottom:10px;"><span style="color:#bf0000;font-weight:700;">${price}</span>（${dateStr}時点 楽天市場調べ）${amzPriceStr ? '<br><span style="color:#232f3e;font-weight:700;">' + amzPriceStr + '</span>（' + dateStr + '時点 Amazon調べ）' : ''}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;"><a href="${rakAffUrl}" target="_blank" rel="noopener" style="padding:8px 18px;background:#bf0000;color:#fff;font-weight:700;font-size:0.85rem;border-radius:4px;text-decoration:none;">楽天市場</a>${amzAffUrl ? `<a href="${amzAffUrl}" target="_blank" rel="noopener" style="padding:8px 18px;background:#232f3e;color:#fff;font-weight:700;font-size:0.85rem;border-radius:4px;text-decoration:none;">AMAZON</a>` : ''}</div>
+  </div>
+</div>`;
+
+    document.getElementById('previewArea').innerHTML = previewHtml;
+    document.getElementById('htmlOutput').value = outputHtml;
+    document.getElementById('outputCard').style.display = 'block';
+    document.getElementById('outputCard').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function openAmazonSearch() {
+    if (!selectedItem) return;
+    const query = encodeURIComponent(selectedItem.title.replace(/【[^】]*】/g, '').trim().slice(0, 50));
+    window.open('https://www.amazon.co.jp/s?k=' + query, '_blank');
+  }
+
+  function copyHtml() {
+    const el = document.getElementById('htmlOutput');
+    el.select();
+    document.execCommand('copy');
+    alert('コピーしました');
+  }
+
+  function downloadBat() {
+    const content = `@echo off\ncd /d "%~dp0"\nnode -v >nul 2>&1\nif %errorlevel% neq 0 (\n  echo Node.jsがインストールされていません\n  start https://nodejs.org/ja/\n  pause\n  exit\n)\nstart http://localhost:3003\nnode server.js\npause`;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'start_win.bat';
+    a.click();
+  }
+
+  function downloadSh() {
+    const content = `#!/bin/bash\ncd "$(dirname "$0")"\nif ! command -v node &> /dev/null; then\n  echo "Node.jsがインストールされていません"\n  open https://nodejs.org/ja/\n  exit 1\nfi\nopen http://localhost:3003\nnode server.js`;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'start_mac.sh';
+    a.click();
+  }
+</script>
+</body>
+</html>
